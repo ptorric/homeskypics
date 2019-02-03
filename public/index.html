@@ -1,261 +1,419 @@
 <html>
 
 <body>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+
   <script src="js/load-image.all.min.js"></script>
   <script src="js/vuedev.js"></script>
   <script src="js/three.min.js"></script>
   <script src="js/OrbitControls.js"></script>
 
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+
   <div id="myApp">
-    <h1>Try me!</h1>
-    <p>
-      <label>Immagine:</label>
-      <input type="file" id="file-input" v-on:change="load">
-    </p>
-  <hr>
-    <p>
-      <button v-on:click="invert">Invert</button>
-      <button v-on:click="draw">Draw</button>
-      <button v-on:click="add">Add</button>
-      <button v-on:click="add2">Add2</button>
-      <input type="number" v-model="soglia" />
-      <button v-on:click="filter">Filter</button>      
-    </p>
-    <p>
-      x={{x}} y={{y}} xw={{xw}} yx={{yw}} ax={{ax}} ay={{ay}}
-    </p>
-  <hr>
-    <canvas id="immagine" v-bind:width="w" v-bind:height="h" ref="immagine" v-on:mousedown="click1" v-on:mouseup="click2" v-on:mousemove="move"></canvas>
-  <hr>
-  <div></div>
+
+    <nav class="navbar navbar-default">
+      <div class="container-fluid">
+      <!-- Brand and toggle get grouped for better mobile display -->
+      <div class="navbar-header">
+
+        <ul class="nav navbar-nav">
+          <li>
+            <a class="navbar-brand" href="#">
+              <p>Home Sky Pics</p>
+            </a>
+          </li>
+          <li>
+            <label>Immagine:</label>
+            <input type="file" id="file-input" v-on:change="load" v-on:load="load2">
+          </li>
+          <li>
+            <button v-on:click="bw">BW</button>
+            <button v-on:click="histo">H</button>
+            <button v-on:click="cerchi">C</button>
+            <button v-on:click="invert">Invert</button>
+            <button v-on:click="draw">Draw</button>
+            <button v-on:click="add">Add</button>
+            <button v-on:click="add2">Add2</button>
+            <input type="number" v-model="soglia" />
+            <button v-on:click="filter">Filter</button>
+            <br/>
+            x={{x}} y={{y}} xw={{xw}} yx={{yw}} ax={{ax}} ay={{ay}}
+          </li>
+          <li>
+            <div class="navbar-brand">
+              <div v-if="cv">{{msg}}</div>
+              <div v-else>loading openCV...</div>
+            </div>
+          </li>
+        </ul>
+
+      </div>
+    </nav>
+
+    <hr>
+    <div style="backgroup-color:lightgrey" >
+      <canvas id="immagine" style="border: 1px solid lightgrey" v-bind:width="w" v-bind:height="h" ref="immagine" v-on:mousedown="click1" v-on:mouseup="click2" v-on:mousemove="move"></canvas>
+    </div>
+    <hr>
+    <div style="backgroup-color:lightgrey" >
+      <canvas id="immaginetmp" style="border: 1px solid lightgrey" v-bind:width="w" v-bind:height="h" ref="immaginetmp"></canvas>
+    </div>
+    <hr>
+    <div id="visgraph"></div>
+    <hr>
+    <img id="imageSrc" alt="No Image" style="display: none" v-on:load="load2"/>
+    <hr>
   </div>
 
-<script>
+  <script>
+    var myApp = new Vue({
+      el: '#myApp',
+      data: {
+        w: 1024,
+        h: 768,
+        x: 0,
+        y: 0,
+        ax: 0,
+        ay: 0,
+        xw: 0,
+        yw: 0,
+        soglia: 0,
+        element: undefined,
+        click: false,
+        imgData: {},
+        scene: {},
+        camera: {},
+        renderer: {},
+        controls: {},
+        cv: false,
+        msg: '',
+      },
+      methods: {
 
-var myApp=new Vue({
-  el:'#myApp',
-  data: {
-    w:1024,
-    h:768,
-    x:0,
-    y:0,
-    ax:0,
-    ay:0,
-    xw:0,
-    yw:0,
-    soglia:0,
-    element: undefined,
-    click:false,
-    imgData:{},
-    scene: {},
-    camera: {},
-    renderer: {},
-    controls: {},
-  },
-  methods: {
+        click1: function(event) {
+          this.click = true;
+          this.x = event.offsetX;
+          this.y = event.offsetY;
+          console.log('x=' + this.x + ' y=' + this.y);
+        },
+        click2: function(event) {
+          this.click = false;
+          this.xw = event.offsetX - this.x;
+          this.yw = event.offsetY - this.y;
 
-    click1: function(event) {
-      this.click=true;
-      this.x=event.offsetX;
-      this.y=event.offsetY;
-      console.log('x='+this.x+' y='+this.y);
-    },
-    click2: function(event) {
-      this.click=false;
-      this.xw=event.offsetX-this.x;
-      this.yw=event.offsetY-this.y;
+          /*
+          this.x=0;
+          this.y=0;
+          this.xw=this.imgData.width;
+          this.yw=this.imgData.height;
+          */
+          console.log('xw=' + this.xw + ' yw=' + this.yw);
+          //this.draw();
+          //this.add2();
+          this.vis();
+        },
+        move: function(event) {
+          if (this.click) {
+            //        console.log(event);
+          }
+          this.ax = event.offsetX;
+          this.ay = event.offsetY;
+        },
+        vis: function() {
+          var data = new vis.DataSet();
 
-      /*
-      this.x=0;
-      this.y=0;
-      this.xw=this.imgData.width;
-      this.yw=this.imgData.height;
-      */
-      console.log('xw='+this.xw+' yw='+this.yw);
-      this.draw();
-      this.add2();
-    },
-    move: function(event) {
-      if (this.click) {
-//        console.log(event);
-      }
-      this.ax=event.offsetX;
-      this.ay=event.offsetY;
-    },
-    draw: function() {
-      this.scene = new THREE.Scene();
-      this.camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, 0.1, 1000 );
-      this.camera.position.z = 5;
+          var thecanvas = this.$refs['immagine'];
+          var ctx = thecanvas.getContext("2d");
+          var imgData = ctx.getImageData(0, 0, thecanvas.width, thecanvas.height);
 
-      this.renderer = new THREE.WebGLRenderer();
-      this.renderer.setSize( window.innerWidth, window.innerHeight );
+          console.log('x=' + this.x + ' y=' + this.y + ' xw=' + this.xw + ' yw=' + this.yw);
 
-      if (this.element!=undefined)
-        document.body.removeChild( this.element );
-      this.element=document.body.appendChild( this.renderer.domElement );
+          var step = 1;
+          for (var x = 0; x < this.xw; x += step) {
+            for (var y = 0; y < this.yw; y += step) {
+              var pos = (this.y + y) * imgData.width * 4 + (this.x + x) * 4;
+              var r = imgData.data[pos];
+              var g = imgData.data[pos + 1];
+              var b = imgData.data[pos + 2];
+              var a = imgData.data[pos + 3];
+              var v = r + g + b;
 
-      this.renderer.render( this.scene, this.camera );
+              console.log('x=' + x + ' y=' + y + ' v=' + v);
+              data.add({
+                x: x,
+                y: -y,
+                z: v,
+                style: v,
+              });
+            }
+          }
 
-      this.controls = new THREE.OrbitControls( this.camera );
+          // specify options
+          var options = {
+            width: '800px',
+            height: '600px',
+            style: 'surface',
+            showPerspective: true,
+            showGrid: true,
+            showShadow: false,
+            keepAspectRatio: true,
+            // verticalRatio: 0.5
+          };
 
-      //controls.update() must be called after any manual changes to the camera's transform
-//      this.camera.position.set( 0, 20, 100 );
-      this.controls.autoRotate=false;
-      this.controls.update();
-      var self=this;
+          // create a graph3d
+          var container = document.getElementById('visgraph');
+          graph3d = new vis.Graph3d(container, data, options);
+          graph3d.setCameraPosition({
+            horizontal: 0.0,
+            vertical: 0.5,
+            distance: 1.7
+          });
+        },
+        draw: function() {
+          this.scene = new THREE.Scene();
+          this.camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
+          this.camera.position.z = 5;
 
-      function animate() {
-        // console.log('animate');
-      	requestAnimationFrame( animate );
-      	self.controls.update();
-      	self.renderer.render( self.scene, self.camera );
-      }
-      animate();
-    },
+          this.renderer = new THREE.WebGLRenderer();
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-    add2: function() {
-      console.log('add2');
-      var material = new THREE.LineBasicMaterial( { color: 0x00ff00 } );
-      var geometry = new THREE.Geometry();
-      var x0=0; // -(this.w/4)
-      var z0=-50;
+          if (this.element != undefined)
+            document.body.removeChild(this.element);
+          this.element = document.body.appendChild(this.renderer.domElement);
 
-      var thecanvas=this.$refs['immagine'];
-      var ctx=thecanvas.getContext("2d");
-      var imgData=ctx.getImageData(0,0,thecanvas.width,thecanvas.height);
+          this.renderer.render(this.scene, this.camera);
 
-      var y1=this.y;
-      var y2=y1+this.yw;
-      var x1=this.x;
-      var x2=x1+this.xw;
+          this.controls = new THREE.OrbitControls(this.camera);
 
-      for (var y=y1;y<y2;y++)
-      {
-        var yd=y-y1;
-        geometry.vertices.push(new THREE.Vector3( 0, -yd*0.1, 0) );
-        for (var i=x1;i<x2;i++)
-        {
-          var pos=y*imgData.width*4+i*4;
-          var r=imgData.data[pos];
-          var g=imgData.data[pos+1];
-          var b=imgData.data[pos+2];
-          var a=imgData.data[pos+3];
+          //controls.update() must be called after any manual changes to the camera's transform
+          //      this.camera.position.set( 0, 20, 100 );
+          this.controls.autoRotate = false;
+          this.controls.update();
+          var self = this;
 
-          //var z=(r+g+b)/3;
-          var z=r;
-          var xd=i-x1;
-          //console.log('x='+i+' y='+y+' z='+z+' pos='+pos+' rgba='+r+g+b+a);
-          geometry.vertices.push(new THREE.Vector3( xd*0.1, -yd*0.1, z*0.1) );
-        }
-        geometry.vertices.push(new THREE.Vector3( (x2-x1)*0.1, -yd*0.1, 0) );
-        geometry.vertices.push(new THREE.Vector3( 0, -yd*0.1, 0) );
-      }
+          function animate() {
+            // console.log('animate');
+            requestAnimationFrame(animate);
+            self.controls.update();
+            self.renderer.render(self.scene, self.camera);
+          }
+          animate();
+        },
 
+        add2: function() {
+          console.log('add2');
+          var material = new THREE.LineBasicMaterial({
+            color: 0x00ff00
+          });
+          var geometry = new THREE.Geometry();
+          var x0 = 0; // -(this.w/4)
+          var z0 = -50;
 
-      for (var i=x1;i<x2;i++)
-      {
-        var xd=i-x1;
-        geometry.vertices.push(new THREE.Vector3( xd*0.1, 0, 0) );
-        for (var y=y1;y<y2;y++)
-        {
-          var pos=y*imgData.width*4+i*4;
-          var r=imgData.data[pos];
-          var g=imgData.data[pos+1];
-          var b=imgData.data[pos+2];
-          var a=imgData.data[pos+3];
+          var thecanvas = this.$refs['immagine'];
+          var ctx = thecanvas.getContext("2d");
+          var imgData = ctx.getImageData(0, 0, thecanvas.width, thecanvas.height);
 
-          //var z=(r+g+b)/3;
-          var z=r;
-          var yd=y-y1;
-          // console.log('x='+i+' y='+y+' z='+z);
-          geometry.vertices.push(new THREE.Vector3( xd*0.1, -yd*0.1, z*0.1) );
-        }
-        geometry.vertices.push(new THREE.Vector3( xd*0.1, -(y2-y1)*0.1, 0) );
-        geometry.vertices.push(new THREE.Vector3( xd*0.1, 0, 0) );
-      }
+          var y1 = this.y;
+          var y2 = y1 + this.yw;
+          var x1 = this.x;
+          var x2 = x1 + this.xw;
+
+          for (var y = y1; y < y2; y++) {
+            var yd = y - y1;
+            geometry.vertices.push(new THREE.Vector3(0, -yd * 0.1, 0));
+            for (var i = x1; i < x2; i++) {
+              var pos = y * imgData.width * 4 + i * 4;
+              var r = imgData.data[pos];
+              var g = imgData.data[pos + 1];
+              var b = imgData.data[pos + 2];
+              var a = imgData.data[pos + 3];
+
+              //var z=(r+g+b)/3;
+              var z = r;
+              var xd = i - x1;
+              //console.log('x='+i+' y='+y+' z='+z+' pos='+pos+' rgba='+r+g+b+a);
+              geometry.vertices.push(new THREE.Vector3(xd * 0.1, -yd * 0.1, z * 0.1));
+            }
+            geometry.vertices.push(new THREE.Vector3((x2 - x1) * 0.1, -yd * 0.1, 0));
+            geometry.vertices.push(new THREE.Vector3(0, -yd * 0.1, 0));
+          }
 
 
-      var line = new THREE.Line( geometry, material );
-      this.scene.add( line );
-      this.renderer.render( this.scene, this.camera );
-    },
+          for (var i = x1; i < x2; i++) {
+            var xd = i - x1;
+            geometry.vertices.push(new THREE.Vector3(xd * 0.1, 0, 0));
+            for (var y = y1; y < y2; y++) {
+              var pos = y * imgData.width * 4 + i * 4;
+              var r = imgData.data[pos];
+              var g = imgData.data[pos + 1];
+              var b = imgData.data[pos + 2];
+              var a = imgData.data[pos + 3];
 
-    add: function() {
-      var geometry = new THREE.BoxGeometry( 1, 1, 1 );
-      var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-      var cube = new THREE.Mesh( geometry, material );
-      this.scene.add( cube );
-      this.renderer.render( this.scene, this.camera );
-    },
+              //var z=(r+g+b)/3;
+              var z = r;
+              var yd = y - y1;
+              // console.log('x='+i+' y='+y+' z='+z);
+              geometry.vertices.push(new THREE.Vector3(xd * 0.1, -yd * 0.1, z * 0.1));
+            }
+            geometry.vertices.push(new THREE.Vector3(xd * 0.1, -(y2 - y1) * 0.1, 0));
+            geometry.vertices.push(new THREE.Vector3(xd * 0.1, 0, 0));
+          }
 
-  clona: function(img) {
-    var c2=this.$refs['immagine']; // document.getElementById('immagine');
-    var ctx=c2.getContext("2d");
-    var copia=ctx.createImageData( img );
-    copia.data.set(img.data);
-    console.log(copia);
 
-    return copia;
-  },
+          var line = new THREE.Line(geometry, material);
+          this.scene.add(line);
+          this.renderer.render(this.scene, this.camera);
+        },
 
-  display: function(img) {
-    var c2=this.$refs['immagine']; // document.getElementById('immagine');
-    var ctx=c2.getContext("2d");
-    ctx.putImageData(img,0,0);
-  },
+        add: function() {
+          var geometry = new THREE.BoxGeometry(1, 1, 1);
+          var material = new THREE.MeshBasicMaterial({
+            color: 0x00ff00
+          });
+          var cube = new THREE.Mesh(geometry, material);
+          this.scene.add(cube);
+          this.renderer.render(this.scene, this.camera);
+        },
 
-  filter: function(){
-    var buf=this.clona(this.imgData);
+        clona: function(img) {
+          var c2 = this.$refs['immagine']; // document.getElementById('immagine');
+          var ctx = c2.getContext("2d");
+          var copia = ctx.createImageData(img);
+          copia.data.set(img.data);
+          console.log(copia);
 
-    for (var i=0; i<buf.data.length; i+=4) {
-        var v=(buf.data[i]+buf.data[i+1]+buf.data[i+2])/3;
-        if (v<this.soglia) {
-          buf.data[i]=0;
-          buf.data[i+1]=0;
-          buf.data[i+2]=0;
-        }
+          return copia;
+        },
+
+        display: function(img) {
+          var c2 = this.$refs['immagine']; // document.getElementById('immagine');
+          var ctx = c2.getContext("2d");
+          ctx.putImageData(img, 0, 0);
+        },
+
+        filter: function() {
+          var buf = this.clona(this.imgData);
+
+          for (var i = 0; i < buf.data.length; i += 4) {
+            var v = (buf.data[i] + buf.data[i + 1] + buf.data[i + 2]) / 3;
+            if (v < this.soglia) {
+              buf.data[i] = 0;
+              buf.data[i + 1] = 0;
+              buf.data[i + 2] = 0;
+            }
+          };
+          this.display(buf);
+        },
+
+        load: function(e) {
+          console.log('load');
+          var self = this;
+          let imgElement = document.getElementById("imageSrc");
+          imgElement.src = URL.createObjectURL(e.target.files[0]);
+          this.msg="image loading...";
+        },
+
+        load2: function(e) {
+          console.log('load2');
+          let imgElement = document.getElementById("imageSrc");
+          let mat = cv.imread(imgElement);
+          cv.imshow('immagine', mat);
+          mat.delete();
+          this.msg="image processed";
+        },
+        histo: function() {
+          let src = cv.imread('immagine');
+          cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+          let srcVec = new cv.MatVector();
+          srcVec.push_back(src);
+          let accumulate = false;
+          let channels = [0];
+          let histSize = [256];
+          let ranges = [0, 255];
+          let hist = new cv.Mat();
+          let mask = new cv.Mat();
+          let color = new cv.Scalar(255, 255, 255);
+          let scale = 2;
+          // You can try more different parameters
+          cv.calcHist(srcVec, channels, mask, hist, histSize, ranges, accumulate);
+          let result = cv.minMaxLoc(hist, mask);
+          let max = result.maxVal;
+          let dst = new cv.Mat.zeros(src.rows, histSize[0] * scale,
+                                     cv.CV_8UC3);
+          // draw histogram
+          for (let i = 0; i < histSize[0]; i++) {
+              let binVal = hist.data32F[i] * src.rows / max;
+              let point1 = new cv.Point(i * scale, src.rows - 1);
+              let point2 = new cv.Point((i + 1) * scale - 1, src.rows - binVal);
+              cv.rectangle(dst, point1, point2, color, cv.FILLED);
+          }
+          cv.imshow('immaginetmp', dst);
+          src.delete(); dst.delete(); srcVec.delete(); mask.delete(); hist.delete();
+        },
+        bw: function() {
+          let src = cv.imread('immagine');
+          let dst = new cv.Mat();
+          // To distinguish the input and output, we graying the image.
+          // You can try different conversions.
+          cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+          cv.imshow('immagine', dst);
+          src.delete();
+          dst.delete();
+          this.msg="image b/w";
+        },
+        cerchi: function() {
+          let src = cv.imread('immagine');
+          let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8U);
+          let circles = new cv.Mat();
+          let color = new cv.Scalar(255, 0, 0);
+          cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+          // You can try more different parameters
+          cv.HoughCircles(src, circles, cv.HOUGH_GRADIENT,
+                          1, 45,   20, 20,   2, 20);
+          // draw circles
+          for (let i = 0; i < circles.cols; ++i) {
+              let x = circles.data32F[i * 3];
+              let y = circles.data32F[i * 3 + 1];
+              let radius = circles.data32F[i * 3 + 2];
+              let center = new cv.Point(x, y);
+              cv.circle(dst, center, radius, color);
+          }
+          cv.imshow('immaginetmp', dst);
+          src.delete(); dst.delete(); circles.delete();
+
+        },
+        invert: function() {
+          var thecanvas = this.$refs['immagine'];
+          var ctx = thecanvas.getContext("2d");
+          var imgData = ctx.getImageData(0, 0, thecanvas.width, thecanvas.height);
+
+          // invert colors
+          for (var i = 0; i < imgData.data.length; i += 4) {
+            imgData.data[i] = 255 - imgData.data[i];
+            imgData.data[i + 1] = 255 - imgData.data[i + 1];
+            imgData.data[i + 2] = 255 - imgData.data[i + 2];
+            imgData.data[i + 3] = 255;
+          }
+          ctx.putImageData(imgData, 0, 0);
+        },
+        openCvReady: function() {
+          this.cv = true;
+        },
+      },
+    });
+
+    function onOpenCvReady() {
+      myApp.cv = true;
+      myApp.msg="powered by OpenCV";
     };
-    this.display(buf);
-  },
-
-    load: function(e) {
-      var self=this;
-      loadImage(
-          e.target.files[0],
-          function (img) {
-              var ctx=img.getContext("2d");
-              Vue.set(self,'imgData', ctx.getImageData(0,0,img.width,img.height) );
-              console.log('w='+img.width+' h='+img.height);
-              var c2=self.$refs['immagine']; // document.getElementById('immagine');
-              var ctx=c2.getContext("2d");
-              ctx.putImageData(self.imgData,0,0);
-          },
-          {
-            canvas: true
-          } // Options
-      );
-    },
-
-    invert: function() {
-      var thecanvas=this.$refs['immagine'];
-      var ctx=thecanvas.getContext("2d");
-      var imgData=ctx.getImageData(0,0,thecanvas.width,thecanvas.height);
-
-      // invert colors
-      for (var i=0;i<imgData.data.length;i+=4)
-        {
-        imgData.data[i]=255-imgData.data[i];
-        imgData.data[i+1]=255-imgData.data[i+1];
-        imgData.data[i+2]=255-imgData.data[i+2];
-        imgData.data[i+3]=255;
-        }
-        ctx.putImageData(imgData,0,0);
-    },
-
-  },
-});
-
-</script>
+  </script>
+  <script async src="js/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
 
 </body>
+
 </html>
