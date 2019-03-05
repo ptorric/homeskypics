@@ -31,10 +31,10 @@ if __name__ == '__main__':
   loader = Loader();
   loader.loadReferenceAndTentative();
   cleaner = Cleaner();
-  imgReference = cleaner.clean(loader.reference(), "reference")
-  imgTentative = cleaner.clean(loader.tentative(), "tentative")
+  imgReference = cleaner.clean(loader.imgGrayReference, "reference")
+  imgTentative = cleaner.clean(loader.imgGrayTentative, "tentative")
 
-  features = Features(imgReference, imgTentative);
+  features = Features(imgReference, loader.imgColorReference, imgTentative, loader.imgColorTentative);
   features.extractFeatures()
 
   sys.exit();

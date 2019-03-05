@@ -33,18 +33,6 @@ class Cleaner:
     def __init__(self):
         self.iterationsErosion = NUM_ITERATIONS_EROSION
 
-    def clean1(self, img, id):
-        imgf = cv2.bitwise_not(img)
-        if(self.writeOp):
-            cv2.imwrite("output/clean_binario"+id+".png", imgf );
-        imgf = self.threshold(imgf, id)
-        if(self.writeOp):
-            cv2.imwrite("output/clean_soglia"+id+".png", imgf );
-        imgf = self.reduction(imgf, id, self.iterationsErosion)
-        if(self.writeOp):
-            cv2.imwrite("output/clean_reduction"+id+".png", imgf );
-        return imgf
-
     def reduction(self, img, id, theIterations):
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
         imgf = cv2.erode(img, kernel, iterations=theIterations)
@@ -73,13 +61,41 @@ class Cleaner:
         imgf = self.thresholdOTSU(img, id)
         return imgf
 
-    def clean(self, img, id):
-        if(self.writeOp):
-            self.show('orig',img)
+    def prepare(self, img, id):
         imgf = cv2.GaussianBlur(img,(5,5),0);
         if(self.writeOp):
             self.show('blurred',imgf)
+        return imgf;
 
+    def clean(self, img, id):
+        if(self.writeOp):
+            self.show('orig',img)
+        imgf = self.prepare(img, 'orig');
+        if(self.writeOp):
+            self.show('prepared',imgf)
+        soglia = self.calcHistogramTrhreshold(imgf);
+        nuova_soglia = soglia ;
+        num_points = 10000;
+        while(num_points>100):
+            nuova_soglia = nuova_soglia +1 ;
+            num_points = self.calculatePoints(imgf, nuova_soglia)
+            if(self.writeOp):
+                print("Test for threshold "+ str(nuova_soglia)+" Points #: "+ str(num_points));
+            if(num_points <= 0):
+                nuova_soglia = nuova_soglia -1 ;
+                break;
+        self.soglia = nuova_soglia;
+        return self.applyThreshold(imgf, self.soglia)
+
+    def calculatePoints(self, imgf, threshold):
+        imgf = self.applyThreshold(imgf, threshold)
+        imgInverted = cv2.bitwise_not(imgf)
+        if(self.traced):
+            show('Tracing this', imgInverted)
+        mum_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(imgInverted)
+        return mum_labels -1 ;
+
+    def calcHistogramTrhreshold(self, imgf):
         hist = cv2.calcHist([imgf],[0],None,[256],[0,256])
         threshold = 255
         bins = len(hist)
@@ -102,29 +118,21 @@ class Cleaner:
         print threshold
         #if( threshold < 75 ):
         #    threshold = 75
-        if( threshold == 255 ):
+        if( threshold >= 254 ):
             threshold = 254
+        else:
+            threshold += 1
+        self.threshold = threshold
         if(self.traced):
             self.show('before tresh', imgf)
+        return threshold;
+
+    def applyThreshold(self, imgf, threshold):
         _, imgf = cv2.threshold(imgf,threshold,255,cv2.THRESH_BINARY)
         if(self.traced):
             self.show('after tresh', imgf)
         imgf = cv2.bitwise_not(imgf)
-        #cv2.imshow('soglia',imgf)
-        #cv2.waitKey(0)
-
-        #imgf = cv2.bitwise_not(img)
-        #if(self.writeOp):
-        #    cv2.imwrite("output/clean_binario"+id+".png", imgf );
-        #imgf = self.threshold(imgf, id)
-        #if(self.writeOp):
-        #    cv2.imwrite("output/clean_soglia"+id+".png", imgf );
         imgf = self.dilatation(imgf, id, 1)
-        #cv2.imshow('filtro',imgf)
-        #cv2.waitKey(0)
-        #if(self.writeOp):
-        #    cv2.imwrite("output/clean_reduction"+id+".png", imgf );
-        #sys.exit();
         return imgf
 
     def show(self, id, img):

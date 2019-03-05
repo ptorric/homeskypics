@@ -18,10 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """
 from matplotlib import pyplot as plt
-from aPoint import APoint
+from apoint import APoint
 import numpy as np
 import cv2
-from imgData import ImgData
+from imgdata import ImgData
 import math
 import sys
 
@@ -31,3 +31,12 @@ def output(arg):
 def emptyImage(width, height):
     newImage = np.full( (height, width, 1), 255, np.uint8 )
     return newImage
+
+def emptyColorImage(width, height):
+    newImage = np.full( (height, width, 3), 255, np.uint8 )
+    return newImage
+
+def show(id, img):
+    output('Dimensions of '+id+' are: '+str(img.shape[1])+'/'+str(img.shape[0]))
+    cv2.imshow(id,img)
+    cv2.waitKey(0)
