@@ -24,3 +24,5 @@ class APoint:
         self.x = theX
         self.y = theY
         self.weight = theWeight
+    def __str__(self):
+        return "APoint( x:"+str(self.x)+", y:"+str(self.y)+")";

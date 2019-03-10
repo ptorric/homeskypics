@@ -26,16 +26,26 @@ class Loader:
     def loadReferenceAndTentative(self):
         self.loadTest2();
 
+    def loadReference(self, imagePath):
+        self.imgGrayReference = cv2.imread(imagePath,cv2.IMREAD_GRAYSCALE)
+        self.imgColorReference = cv2.imread(imagePath,cv2.IMREAD_COLOR)
+
+    def loadTentative(self, imagePath):
+        self.imgGrayTentative = cv2.imread(imagePath,cv2.IMREAD_GRAYSCALE)
+        self.imgColorTentative = cv2.imread(imagePath,cv2.IMREAD_COLOR)
+
     def loadTest1(self):
-        self.imgReference = cv2.imread('../data/sample/i0.png',cv2.IMREAD_GRAYSCALE)
-        self.imgTentative = cv2.imread('../data/sample/i1.png',cv2.IMREAD_GRAYSCALE)
+        self.loadReference('../data/sample/i0.png')
+        self.loadTentative('../data/sample/i1.png')
 
     def loadTest2(self):
-        self.imgReference = cv2.imread('../data/sample/test1.jpg',cv2.IMREAD_GRAYSCALE)
-        self.imgTentative = cv2.imread('../data/sample/test2.jpg',cv2.IMREAD_GRAYSCALE)
+        self.loadReference('../data/sample/test1.jpg')
+        self.loadTentative('../data/sample/test2.jpg')
 
-    def reference(self):
-         return self.imgReference ;
+    def loadTest3(self):
+        self.loadReference('../data/sample/points0.png')
+        self.loadTentative('../data/sample/points0moved.png')
 
-    def tentative(self):
-        return self.imgTentative ;
+    def loadTest4(self):
+        self.loadReference('../data/sample/points0.png')
+        self.loadTentative('../data/sample/points0rot.png')
