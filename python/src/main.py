@@ -25,16 +25,20 @@ from loader import Loader
 from cleaner import Cleaner
 from features import Features
 import sys
+from params import Params
 
 if __name__ == '__main__':
+  params = Params()
+  params.decode(sys.argv[1:])
 
   loader = Loader();
   loader.loadReferenceAndTentative();
   cleaner = Cleaner();
-  imgReference = cleaner.clean(loader.imgGrayReference, "reference")
-  imgTentative = cleaner.clean(loader.imgGrayTentative, "tentative")
+  target, imgReference = cleaner.clean(loader.imgGrayReference, "reference")
+  imgTentative = cleaner.cleanWithExpectedCount(loader.imgGrayTentative, "tentative", target)
 
   features = Features(imgReference, loader.imgColorReference, imgTentative, loader.imgColorTentative);
-  features.extractFeatures()
+  features.extractFeatures(params)
 
+  print("Offset is:"+str(features.offset)+", angle is: "+str(features.angle)+", value is:"+str(features.value)+ ", scale is:"+str(features.scaleFactor))
   sys.exit();

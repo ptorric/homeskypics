@@ -26,9 +26,10 @@ from imgdata import ImgData
 import math
 import sys
 import util
+from params import Params
 
 class Features:
-    traced = True
+    traced = False
 
     def __init__(self, theGrayReference, theColorReference, theGrayTentative, theColorTentative):
         self.imgReference = theGrayReference
@@ -39,30 +40,35 @@ class Features:
         self.dataReference = ImgData('reference', self.imgReference)
         self.dataTentative = ImgData('tentative', self.imgTentative)
 
-    def extractFeatures(self):
+    def extractFeatures(self, params):
       self.dataReference.calculateIntrinsicData()
       self.dataTentative.calculateIntrinsicData()
+      self.showOriginal()
       if(self.traced):
           self.print_cm()
 
+      self.scaleFactor =1
       if(self.dataReference.meanDistance()!= 0 ):
-        scaleFactor = self.dataTentative.meanDistance()/self.dataReference.meanDistance()
-        output("Scale factor is "+ str(scaleFactor))
-      if(scaleFactor!=0):
+        self.scaleFactor = self.dataTentative.meanDistance()/self.dataReference.meanDistance()
+        if(self.traced):
+            util.output("Scale factor is "+ str(self.scaleFactor))
+      if(self.scaleFactor!=0):
           if(self.traced):
-            output("Applying scale factor")
-          self.dataReference.scalePoints(scaleFactor)
+            util.output("Applying scale factor")
+          self.dataReference.scalePoints(self.scaleFactor)
       if(self.traced):
           self.print_cm()
-      value, angle = self.findRotation()
+      self.value, self.angle = self.findRotation(params)
         
-    def findRotation(self):
+    def findRotation(self, params):
         self.offset = self.findOffset();
-        print("Offset is:"+ str(self.offset.x)+" / "+str(self.offset.y))
+        if(self.traced):
+            print("Offset is:"+ str(self.offset.x)+" / "+str(self.offset.y))
         max_value = 0
         max_angle = 0 ;
         start_angle, threshold = self.findRotationCoarse();
-        self.showRotation(threshold)
+        if(params.do_video):
+            self.createVideo(threshold)
         for angle_index in range( start_angle-5, start_angle+5):
             if(angle_index < 0):
                 angle = angle_index + 360
@@ -70,7 +76,6 @@ class Features:
                 angle = angle_index
             referencePointsRotated = self.dataReference.generatePointsForAngle(self.offset, angle)
             valueForAngle = self.dataTentative.testPointsForAngle(referencePointsRotated, imgdata.DISTANCE_FINE)
-            #self.dataTentative.showForAngle(referenceRotated, 'angle: '+str(angle))
             self.writeImageForAngle(self.offset, angle)
             if(self.traced):
                 print(" test angle is:"+ str(angle)+" value is:"+str(valueForAngle))
@@ -83,7 +88,6 @@ class Features:
                 angle += 10
         print("Angle is:"+ str(max_angle)+" value is:"+str(max_value))
         self.imageReferenceRotatedWithPoints = self.dataReference.generateForAngleAndOffset(self.offset, angle)
-        #self.imageReferenceRotated = self.dataReference.generateForAngleAndOffset(offset, angle)
         return max_value, max_angle;
 
 
@@ -95,7 +99,8 @@ class Features:
             max_value = 0
             max_angle = 0 ;
             angle = 0;
-            print("****Testing threshold:"+str(threshold))
+            if(self.traced):
+                print("****findRotationCoarse: Testing threshold:"+str(threshold))
             while(angle <360):
                 referencePointsRotated = self.dataReference.generatePointsForAngle(self.offset, angle)
                 valueForAngle = self.dataTentative.testPointsForAngle(referencePointsRotated, threshold)
@@ -105,18 +110,16 @@ class Features:
                     max_value = valueForAngle
                     max_angle = angle
                 angle += 10
-            print("Coarse Angle is:"+ str(max_angle)+" value is:"+str(max_value))
+            if(self.traced):
+                print("Coarse Angle is:"+ str(max_angle)+" value is:"+str(max_value))
             if((max_value>one_tenth_points) or (threshold >= imgdata.DISTANCE_MAX )):
                 not_good = False
             else:
                 threshold += imgdata.DISTANCE_STEP;
-            #self.imageReferenceRotatedWithPoints = self.dataReference.generateForAngleAndOffset(self.offset, angle)
-            #self.imageReferenceRotated = self.dataReference.generateForAngleAndOffset(offset, angle)
         return max_angle, threshold;
 
 
-    def showRotation(self, threshold):
-        #video = cv2.VideoWriter('../data/out/animation.avi', cv2.VideoWriter_fourcc(*'X264'), 25, (self.dataReference.width, self.dataReference.height))
+    def createVideo(self, threshold):
         video = cv2.VideoWriter('../data/out/animation.avi', cv2.VideoWriter_fourcc(*'XVID'), 3, (self.dataReference.width, self.dataReference.height))
 
         self.offset = self.findOffset();
@@ -133,7 +136,8 @@ class Features:
             cv2.putText(img, 'Angle:'+str(angle)+ " value:"+str(valueForAngle)+ " max:"+str(max_angle), (30,30), cv2.FONT_HERSHEY_SIMPLEX,1, (255, 255, 255), 3)
             video.write(img)
             angle += 1
-            print("Video: "+str(angle)+"/360");
+            if((angle%90)==0):
+                print("Video: "+str(angle)+"/360");
         video.release()
 
     def findOffset(self):
@@ -154,7 +158,7 @@ class Features:
             return imgTentative
         imgResized = cv2.resize(imgTentative, (widthReference, heightReference))
         if(self.traced):
-            output('Resized to: '+str(imgResized.shape[1])+'/'+str(imgResized.shape[0]))
+            util.output('Resized to: '+str(imgResized.shape[1])+'/'+str(imgResized.shape[0]))
         return imgResized;
 
     def showSuperImposedImages(self, offset, angle):
@@ -167,15 +171,10 @@ class Features:
         translation = np.float32([[1,0,int(offset.x)],[0,1,int(offset.y)]])
         rotatedAndTranslated = cv2.warpAffine(rotated, translation, (cols, rows))
         colorTentative = cv2.cvtColor(self.dataTentative.image, cv2.COLOR_GRAY2BGR)
-        #colorTentative = self.dataTentative.image
-        #rotatedAndTranslated = cv2.cvtColor(rotatedAndTranslated, cv2.COLOR_GRAY2BGR)
         rotatedAndTranslated = cv2.cvtColor(rotatedAndTranslated, cv2.COLOR_GRAY2BGR)
-        #rotatedAndTranslated = rotated
         print( rotatedAndTranslated.shape)
         print( colorTentative.shape)
         finalImage = cv2.addWeighted(rotatedAndTranslated, 0.7, colorTentative, 0.3, 0)
-        #finalImage = rotated
-        #finalImage = cv2.cvtColor(finalImage, cv2.COLOR_GRAY2BGR)
         self.dataReference.drawDestinationPoints(finalImage, offset, angle, self.dataTentative.hits, self.dataTentative.points, self.dataReference.cm)
 
         util.show('final', finalImage)
@@ -194,10 +193,11 @@ class Features:
         util.show('Tentative', self.dataTentative.imgWithPointsAndMassCenter())
         self.showSuperImposedImages(offset, angle)
 
+    def showOriginal(self):
+        image = self.imgColorTentative.copy()
+        self.dataReference.drawOriginalPointsAndCM(image, self.dataTentative)
+        cv2.imwrite('../data/out/both.png', image, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+
     def print_cm(self):
         print("reference cm "+str(self.dataReference.cm))
         print("tentative cm "+str(self.dataTentative.cm))
-
-
-def output(arg):
-    print arg

@@ -22,6 +22,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import cv2
 import sys
+import util
 
 NUM_ITERATIONS_EROSION=6
 
@@ -64,15 +65,15 @@ class Cleaner:
     def prepare(self, img, id):
         imgf = cv2.GaussianBlur(img,(5,5),0);
         if(self.writeOp):
-            self.show('blurred',imgf)
+            util.show('blurred',imgf)
         return imgf;
 
     def clean(self, img, id):
         if(self.writeOp):
-            self.show('orig',img)
+            util.show('orig',img)
         imgf = self.prepare(img, 'orig');
         if(self.writeOp):
-            self.show('prepared',imgf)
+            util.show('prepared',imgf)
         soglia = self.calcHistogramTrhreshold(imgf);
         nuova_soglia = soglia ;
         num_points = 10000;
@@ -80,18 +81,35 @@ class Cleaner:
             nuova_soglia = nuova_soglia +1 ;
             num_points = self.calculatePoints(imgf, nuova_soglia)
             if(self.writeOp):
-                print("Test for threshold "+ str(nuova_soglia)+" Points #: "+ str(num_points));
+                util.output("Test for threshold "+ str(nuova_soglia)+" Points #: "+ str(num_points));
             if(num_points <= 0):
                 nuova_soglia = nuova_soglia -1 ;
                 break;
         self.soglia = nuova_soglia;
+        return num_points, self.applyThreshold(imgf, self.soglia)
+
+    def cleanWithExpectedCount(self, img, id, target):
+        if(self.writeOp):
+            util.show('orig',img)
+        imgf = self.prepare(img, 'orig');
+        if(self.writeOp):
+            util.show('prepared',imgf)
+        num_points = 0;
+        target_value = int(target*1.1)
+        nuova_soglia = 256
+        while((num_points<target_value) and (nuova_soglia>=0) ):
+            nuova_soglia = nuova_soglia -1 ;
+            num_points = self.calculatePoints(imgf, nuova_soglia)
+            if(self.writeOp):
+                util.output("Test for threshold "+ str(nuova_soglia)+" Points #: "+ str(num_points));
+        self.soglia = nuova_soglia+1;
         return self.applyThreshold(imgf, self.soglia)
 
     def calculatePoints(self, imgf, threshold):
         imgf = self.applyThreshold(imgf, threshold)
         imgInverted = cv2.bitwise_not(imgf)
         if(self.traced):
-            show('Tracing this', imgInverted)
+            util.show('Tracing this', imgInverted)
         mum_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(imgInverted)
         return mum_labels -1 ;
 
@@ -103,7 +121,7 @@ class Cleaner:
         total = 0;
         while( index < bins ):
             if(self.traced):
-                output("hist "+ str(index)+ " value "+ str(hist[index]))
+                util.output("hist "+ str(index)+ " value "+ str(hist[index]))
             total += hist[index]
             index += 1;
         soglia = total * 0.005 ;
@@ -115,29 +133,22 @@ class Cleaner:
                 break;
             threshold -= 1
             index -= 1
-        print threshold
-        #if( threshold < 75 ):
-        #    threshold = 75
+        if(self.traced):
+            util.output("Threshold is "+str(threshold));
         if( threshold >= 254 ):
             threshold = 254
         else:
             threshold += 1
         self.threshold = threshold
         if(self.traced):
-            self.show('before tresh', imgf)
+            util.show('before tresh', imgf)
         return threshold;
 
     def applyThreshold(self, imgf, threshold):
         _, imgf = cv2.threshold(imgf,threshold,255,cv2.THRESH_BINARY)
         if(self.traced):
-            self.show('after tresh', imgf)
+            util.show('after tresh', imgf)
         imgf = cv2.bitwise_not(imgf)
         imgf = self.dilatation(imgf, id, 1)
         return imgf
 
-    def show(self, id, img):
-        cv2.imshow(id,img)
-        cv2.waitKey(0)
-
-def output(arg):
-    print arg

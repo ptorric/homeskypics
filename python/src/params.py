@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 homeskypics
@@ -18,11 +19,27 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import sys, getopt
 
-class APoint:
-    def __init__(self, theX, theY, theWeight = 1):
-        self.x = int(theX)
-        self.y = int(theY)
-        self.weight = theWeight
-    def __str__(self):
-        return "APoint( x:"+str(self.x)+", y:"+str(self.y)+")";
+class Params:
+    traced = False
+
+    def __init__(self):
+        pass
+
+    def decode(self, args):
+        self.do_video = False
+        self.output = "../data/output"
+        try:
+            opts, args = getopt.getopt(args,"vo:",["video","output="])
+        except getopt.GetoptError:
+            print ('main.py -v -o output_folder')
+            return
+        for opt, arg in opts:
+          if opt == '-v':
+             self.do_video = True
+          elif opt in ("-o", "--output"):
+             self.output = arg
+        if( self.traced ):
+            print ('video: "'+ str(self.do_video));
+            print ('Output file is "'+ self.output+'"')

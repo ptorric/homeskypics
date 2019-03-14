@@ -21,10 +21,21 @@ import cv2
 
 class Loader:
     def __init__(self):
-        pass;
+        pass
 
     def loadReferenceAndTentative(self):
-        self.loadTest2();
+        self.loadTest5();
+        self.check();
+
+    def check(self):
+        if( self.imgGrayReference is None ):
+            raise RuntimeError('Gray Reference image could not be loaded.')
+        if( self.imgColorReference is None ):
+            raise RuntimeError('Color Reference image could not be loaded.')
+        if( self.imgGrayTentative is None ):
+            raise RuntimeError('Gray Tentative image could not be loaded.')
+        if( self.imgGrayTentative is None ):
+            raise RuntimeError('Color Tentative image could not be loaded.')
 
     def loadReference(self, imagePath):
         self.imgGrayReference = cv2.imread(imagePath,cv2.IMREAD_GRAYSCALE)
@@ -33,6 +44,14 @@ class Loader:
     def loadTentative(self, imagePath):
         self.imgGrayTentative = cv2.imread(imagePath,cv2.IMREAD_GRAYSCALE)
         self.imgColorTentative = cv2.imread(imagePath,cv2.IMREAD_COLOR)
+
+    def loadTest5(self):
+        self.loadReference('../data/sample/IMG_0589.jpg')
+        self.loadTentative('../data/sample/IMG_0590.jpg')
+
+    def loadTestSelf(self):
+        self.loadReference('../data/sample/IMG_0589.jpg')
+        self.loadTentative('../data/sample/IMG_0589.jpg')
 
     def loadTest1(self):
         self.loadReference('../data/sample/i0.png')

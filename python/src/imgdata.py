@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """
 from apoint import APoint
+from angledata import AngleData
 import cv2
 import numpy as np
 import math
@@ -37,6 +38,7 @@ class ImgData:
         self.name = theName
         self.image = theImage
         self.cm = APoint(0,0)
+        self.hits = list()
         self.height, self.width = self.image.shape
         if(self.traced):
             show(self.name, self.image);
@@ -121,7 +123,6 @@ class ImgData:
 
     def extractFeatures(self):
         imgInverted = cv2.bitwise_not(self.image)
-        #imgInverted = self.image
         if(self.traced):
             show('Tracing this', imgInverted)
         mum_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(imgInverted)
@@ -181,17 +182,19 @@ class ImgData:
 
     def generateForAngleAndOffset(self, offsetAsPoint, angle):
         imgToTest = self.blankImage();
+        angleData = AngleData(angle)
         for _, point in enumerate(self.points):
             #print(" in:"+str(point.x)+"/"+str(point.y)+" angle:"+str(angle))
-            pointMoved = self.moveScalePoint(point, offsetAsPoint, angle)
+            pointMoved = self.moveScalePointOp(point, offsetAsPoint, angleData)
             #print(" out:"+str(pointMoved.x)+"/"+str(pointMoved.y))
             self.markObjectInImage(imgToTest, pointMoved);
         return imgToTest
 
     def generatePointsForAngle(self, offsetAsPoint, angle):
         points = list();
+        angleData = AngleData(angle)
         for _, point in enumerate(self.points):
-            pointMoved = self.moveScalePoint(point, offsetAsPoint, angle)
+            pointMoved = self.moveScalePointOp(point, offsetAsPoint, angleData)
             points.append(pointMoved)
         return points
 
@@ -236,16 +239,16 @@ class ImgData:
         show(id, imgNew)
 
     def moveScalePoint(self, point, offsetAsPoint, angle):
+        return self.moveScalePointOp(self, point, offsetAsPoint, AngleData(angle))
+
+    def moveScalePointOp(self, point, offsetAsPoint, angleData):
         #TODO: refactor, move out constants
-        angleInRadians = math.radians(angle)
         new_mass_center_x = self.cm.x + offsetAsPoint.x
         new_mass_center_y = self.cm.y + offsetAsPoint.y
         delta_x = point.x - self.cm.x
         delta_y = point.y - self.cm.y
-        cosAngle = math.cos(angleInRadians)
-        sinAngle = math.sin(angleInRadians)
-        new_x = new_mass_center_x + (cosAngle * delta_x) - (sinAngle * delta_y)
-        new_y = new_mass_center_y + (sinAngle * delta_x) + (cosAngle * delta_y)
+        new_x = new_mass_center_x + (angleData.cosAngle * delta_x) - (angleData.sinAngle * delta_y)
+        new_y = new_mass_center_y + (angleData.sinAngle * delta_x) + (angleData.cosAngle * delta_y)
         return APoint(new_x, new_y);
 
     def setPoint(self, img, the_x, the_y, value) :
@@ -295,18 +298,17 @@ class ImgData:
             y = int(hit.y)
             cv2.circle(colorImage, (x, y), 6, colorHit, 6)
 
+        angleData = AngleData(angle);
         if(go_new):
             for pt in self.points:
                 startX = int(pt.x)
                 startY = int(pt.y)
                 #cv2.line(colorImage, (self.cm.x, self.cm.y), (startX, startY), colorLine, 2)
                 cv2.circle(colorImage, (startX, startY), 3, colorSrc)
-                pointMoved = self.moveScalePoint(pt, offsetAsPoint, angle)
+                pointMoved = self.moveScalePointOp(pt, offsetAsPoint, angleData)
                 endX = int(pointMoved.x)
                 endY = int(pointMoved.y)
                 cv2.circle(colorImage, (endX, endY), 6, colorDest)
-                #cv2.arrowedLine(colorImage, (startX, startY), (endX, endY), colorLine, 1)
-                #cv2.line(colorImage, (self.cm.x+offsetAsPoint.x, self.cm.y+offsetAsPoint.y), (endX, endY), colorLine, 2)
 
         for pt in self.originalPoints:
             x = int(pt.x)
@@ -359,12 +361,37 @@ class ImgData:
         #print("this cm "+str(self.cm))
         #print("other cm "+str(other.cm))
 
+    def drawOriginalPointsAndCM(self, colorImage, other):
+        colorOther = (0,0,255)
+        colorOriginal = (0,255,0)
+        colorHit = (0,255,255)
+
+        for hit in other.hits:
+            x = int(hit.x)
+            y = int(hit.y)
+            cv2.circle(colorImage, (x, y), 6, colorHit, 3)
+
+        for pt in self.originalPoints:
+            x = int(pt.x)
+            y = int(pt.y)
+            cv2.circle(colorImage, (x, y), 6, colorOriginal)
+
+        for pt in other.points:
+            x = int(pt.x)
+            y = int(pt.y)
+            cv2.circle(colorImage, (x, y), 3, colorOther)
+            colorCM = (0,255,0)
+        # cm
+        drawCross(colorImage, self.cm, colorOriginal);
+        # orig cm
+        drawCross(colorImage, other.cm, colorOther);
+
 def drawCross(image, point, color):
     cv2.line(image, (point.x, point.y-20 ), (point.x, point.y+20 ), color);
     cv2.line(image, (point.x-20, point.y ), (point.x+20, point.y ), color);
 
 def output(arg):
-    print arg
+    print (arg)
 
 def show(id, img):
     output('Dimensions of '+id+' are: '+str(img.shape[1])+'/'+str(img.shape[0]))
