@@ -19,14 +19,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import unittest
 import numpy as np
-from imgData import ImgData
-from aPoint import APoint
+from imgdata import ImgData
+from apoint import APoint
 from features import Features
 
 class FeaturesTestCase(unittest.TestCase):
 
     def runTest(self):
-        features = Features( np.full((10,10,1), 0, np.uint8), np.full((10,10,1), 0, np.uint8))
+        imgGray = np.full((10,10,1), 0, np.uint8)
+        imgColor = np.full((10,10,3), 0, np.uint8)
+        features = Features( imgGray, imgColor, imgGray, imgColor);
 
         features.dataTentative.cm = APoint(1, 2);
         features.dataReference.cm = APoint(10, 20);

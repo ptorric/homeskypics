@@ -18,11 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import math;
 
 class APoint:
     def __init__(self, theX, theY, theWeight = 1):
-        self.x = int(theX)
-        self.y = int(theY)
+        self.x = round(theX)
+        self.y = round(theY)
         self.weight = theWeight
     def __str__(self):
         return "APoint( x:"+str(self.x)+", y:"+str(self.y)+")";

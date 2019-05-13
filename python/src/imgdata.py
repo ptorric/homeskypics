@@ -39,7 +39,10 @@ class ImgData:
         self.image = theImage
         self.cm = APoint(0,0)
         self.hits = list()
-        self.height, self.width = self.image.shape
+        if( len(self.image.shape) == 2 ) :
+            self.height, self.width = self.image.shape
+        else:
+            self.height, self.width, _ = self.image.shape
         if(self.traced):
             show(self.name, self.image);
 
@@ -239,7 +242,7 @@ class ImgData:
         show(id, imgNew)
 
     def moveScalePoint(self, point, offsetAsPoint, angle):
-        return self.moveScalePointOp(self, point, offsetAsPoint, AngleData(angle))
+        return self.moveScalePointOp(point, offsetAsPoint, AngleData(angle))
 
     def moveScalePointOp(self, point, offsetAsPoint, angleData):
         #TODO: refactor, move out constants
@@ -400,3 +403,4 @@ def show(id, img):
 def emptyImage(width, height):
     newImage = np.full( (height, width, 1), 255, np.uint8 )
     return newImage
+

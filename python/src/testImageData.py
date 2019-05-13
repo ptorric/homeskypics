@@ -17,8 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """
 import unittest
-from imgData import ImgData
-from aPoint import APoint
+from imgdata import ImgData
+from apoint import APoint
 import numpy as np
 import util
 
@@ -71,8 +71,8 @@ class ImgDataTestMovePoint4(unittest.TestCase):
     def runTest(self):
         imgData = imgDataWithCM(APoint(1,2))
         moved = imgData.moveScalePoint(APoint(5,10), APoint(3,6), 180)
-        self.assertAlmostEqual(moved.x, 0, 1, '4x: ' + str(moved.x)+"/"+str(moved.y))
-        self.assertAlmostEqual(moved.y, 0, 1, '4y: ' + str(moved.x)+"/"+str(moved.y))
+        self.assertAlmostEqual(moved.x, 0, 1, '5x: ' + str(moved.x)+"/"+str(moved.y))
+        self.assertAlmostEqual(moved.y, 0, 1, '5y: ' + str(moved.x)+"/"+str(moved.y))
 
 def suite():
     suite = unittest.TestSuite()
